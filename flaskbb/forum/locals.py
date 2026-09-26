@@ -46,6 +46,13 @@ def current_category() -> Category | None:
 
 
 def _get_item(model: Any, view_arg: str, name: str):
+    """
+    Lazily fetches and caches a database model instance for the current request.
+    
+    Uses `flask.g` to memoize the database query during the request lifecycle. 
+    It infers the entity's ID dynamically from the `request.view_args` dictionary 
+    using the provided `view_arg` key.
+    """
     if (
         g
         and not getattr(g, name, None)

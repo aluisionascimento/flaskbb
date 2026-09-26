@@ -34,6 +34,13 @@ def force_login_if_needed():
 def should_force_login(
     user: "User | LocalProxy[User | None]", forum: "Forum | LocalProxy[Forum | None]"
 ):
+    """
+    Determines if a guest user should be forced to authenticate to access the forum.
+    
+    This works by checking if the intersection of the forum's allowed groups and 
+    the unauthenticated user's groups (which defaults to the Guest group) is empty.
+    If they share no groups, the guest cannot access it and must login.
+    """
     return not user.is_authenticated and not (
         {g.id for g in forum.groups} & {g.id for g in user.groups}
     )

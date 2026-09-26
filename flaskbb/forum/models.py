@@ -365,6 +365,13 @@ class Post(HideableCRUDMixin, db.Model):
 
     @override
     def hide(self, user: "User"):
+        """
+        Soft deletes the post. 
+        
+        If this post happens to be the first post of its topic, hiding it 
+        will cascade and hide the entire parent topic instead. 
+        It also triggers a recalculation of the forum's last post and counts.
+        """
         if self.hidden:
             return
 
