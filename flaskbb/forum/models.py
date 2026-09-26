@@ -405,17 +405,9 @@ class Post(HideableCRUDMixin, db.Model):
 
                 if second_last_post:
                     # now lets update the second last post to the last post
-                    self.topic.forum.last_post = second_last_post
-                    self.topic.forum.last_post_title = second_last_post.topic.title  # noqa
-                    self.topic.forum.last_post_user = second_last_post.user
-                    self.topic.forum.last_post_username = second_last_post.username  # noqa
-                    self.topic.forum.last_post_created = second_last_post.date_created  # noqa
+                    self.topic.forum.update_last_post_info(second_last_post)
                 else:
-                    self.topic.forum.last_post = None
-                    self.topic.forum.last_post_title = None
-                    self.topic.forum.last_post_user = None
-                    self.topic.forum.last_post_username = None
-                    self.topic.forum.last_post_created = None
+                    self.topic.forum.update_last_post_info(None)
 
             # check if there is a second last post in this topic
             if self.topic.second_last_post is not None:
@@ -979,17 +971,9 @@ class Topic(HideableCRUDMixin, db.Model):
         if len(topics) > 1:
             if topics[0] == self:
                 # Now the second last post will be the last post
-                self.forum.last_post = topics[1].last_post
-                self.forum.last_post_title = topics[1].title
-                self.forum.last_post_user = topics[1].user
-                self.forum.last_post_username = topics[1].username
-                self.forum.last_post_created = topics[1].last_updated
+                self.forum.update_last_post_info(topics[1].last_post)
         else:
-            self.forum.last_post = None
-            self.forum.last_post_title = None
-            self.forum.last_post_user = None
-            self.forum.last_post_username = None
-            self.forum.last_post_created = None
+            self.forum.update_last_post_info(None)
 
     def _fix_user_post_counts(self, users: list["User"] | None = None):
         from flaskbb.user.models import User
@@ -1172,6 +1156,21 @@ class Forum(db.Model, CRUDMixin):
         """
         return "<{} {}>".format(self.__class__.__name__, self.id)
 
+    def update_last_post_info(self, post: "Post | None"):
+        """Centralizes the logic to assign the last post metadata."""
+        if post is not None:
+            self.last_post = post
+            self.last_post_title = post.topic.title
+            self.last_post_user_id = post.user_id
+            self.last_post_username = post.username
+            self.last_post_created = post.date_created
+        else:
+            self.last_post = None
+            self.last_post_title = None
+            self.last_post_user_id = None
+            self.last_post_username = None
+            self.last_post_created = None
+
     def update_last_post(self, commit: bool = True):
         """Updates the last post in the forum."""
         last_post = db.session.execute(
@@ -1182,23 +1181,7 @@ class Forum(db.Model, CRUDMixin):
             .limit(1)
         ).scalar()
 
-        # Last post is none when there are no topics in the forum
-        if last_post is not None:
-            # a new last post was found in the forum
-            if last_post != self.last_post:
-                self.last_post = last_post
-                self.last_post_title = last_post.topic.title
-                self.last_post_user_id = last_post.user_id
-                self.last_post_username = last_post.username
-                self.last_post_created = last_post.date_created
-
-        # No post found..
-        else:
-            self.last_post = None
-            self.last_post_title = None
-            self.last_post_user = None
-            self.last_post_username = None
-            self.last_post_created = None
+        self.update_last_post_info(last_post)
 
         if commit:
             db.session.commit()
