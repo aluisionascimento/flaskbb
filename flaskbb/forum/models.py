@@ -575,7 +575,6 @@ class Topic(HideableCRUDMixin, db.Model):
 
     @property
     def second_last_post(self):
-        """Returns the second last post id or None."""
         try:
             return self.posts[-2].id
         except IndexError:
@@ -583,7 +582,6 @@ class Topic(HideableCRUDMixin, db.Model):
 
     @property
     def slug(self):
-        """Returns a slugified version of the topic title."""
         return slugify(self.title)
 
     @property
