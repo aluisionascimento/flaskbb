@@ -731,6 +731,35 @@ class Topic(HideableCRUDMixin, db.Model):
         logger.debug("Topic is unread.")
         return True
 
+    def _count_unread_topics(self, user: "User", read_cutoff):
+        return db.session.execute(
+            db.select(db.func.count())
+            .select_from(Topic)
+            .outerjoin(
+                TopicsRead,
+                db.and_(TopicsRead.topic_id == Topic.id, TopicsRead.user_id == user.id),
+            )
+            .outerjoin(
+                ForumsRead,
+                db.and_(
+                    ForumsRead.forum_id == Topic.forum_id,
+                    ForumsRead.user_id == user.id,
+                ),
+            )
+            .filter(
+                Topic.forum_id == self.id,
+                Topic.last_updated > read_cutoff,
+                db.or_(
+                    TopicsRead.last_read.is_(None),
+                    TopicsRead.last_read < Topic.last_updated,
+                ),
+                db.or_(
+                    ForumsRead.last_read.is_(None),
+                    ForumsRead.last_read < Topic.last_updated,
+                ),
+            )
+        ).scalar_one()
+
     def update_read(
         self, user: "User", forum: "Forum", forumsread: "ForumsRead | None"
     ):
@@ -1174,6 +1203,35 @@ class Forum(db.Model, CRUDMixin):
         if commit:
             db.session.commit()
 
+    def _count_unread_topics(self, user: "User", read_cutoff):
+        return db.session.execute(
+            db.select(db.func.count())
+            .select_from(Topic)
+            .outerjoin(
+                TopicsRead,
+                db.and_(TopicsRead.topic_id == Topic.id, TopicsRead.user_id == user.id),
+            )
+            .outerjoin(
+                ForumsRead,
+                db.and_(
+                    ForumsRead.forum_id == Topic.forum_id,
+                    ForumsRead.user_id == user.id,
+                ),
+            )
+            .filter(
+                Topic.forum_id == self.id,
+                Topic.last_updated > read_cutoff,
+                db.or_(
+                    TopicsRead.last_read.is_(None),
+                    TopicsRead.last_read < Topic.last_updated,
+                ),
+                db.or_(
+                    ForumsRead.last_read.is_(None),
+                    ForumsRead.last_read < Topic.last_updated,
+                ),
+            )
+        ).scalar_one()
+
     def update_read(
         self, user: "User", forumsread: ForumsRead | None, topicsread: TopicsRead | None
     ):
@@ -1205,33 +1263,7 @@ class Forum(db.Model, CRUDMixin):
             )
 
         # fetch the unread posts in the forum
-        unread_count = db.session.execute(
-            db.select(db.func.count())
-            .select_from(Topic)
-            .outerjoin(
-                TopicsRead,
-                db.and_(TopicsRead.topic_id == Topic.id, TopicsRead.user_id == user.id),
-            )
-            .outerjoin(
-                ForumsRead,
-                db.and_(
-                    ForumsRead.forum_id == Topic.forum_id,
-                    ForumsRead.user_id == user.id,
-                ),
-            )
-            .filter(
-                Topic.forum_id == self.id,
-                Topic.last_updated > read_cutoff,
-                db.or_(
-                    TopicsRead.last_read.is_(None),
-                    TopicsRead.last_read < Topic.last_updated,
-                ),
-                db.or_(
-                    ForumsRead.last_read.is_(None),
-                    ForumsRead.last_read < Topic.last_updated,
-                ),
-            )
-        ).scalar_one()
+        unread_count = self._count_unread_topics(user, read_cutoff)
 
         # No unread topics available - trying to mark the forum as read
         if unread_count == 0:
