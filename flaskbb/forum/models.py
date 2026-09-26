@@ -386,40 +386,42 @@ class Post(HideableCRUDMixin, db.Model):
         return self
 
     def _deal_with_last_post(self):
-        if self.topic.last_post == self:
-            # update the last post in the forum
-            if self.topic.last_post == self.topic.forum.last_post:
-                # We need the second last post in the forum here,
-                # because the last post will be deleted
-                second_last_post = db.session.execute(
-                    db.select(Post)
-                    .join(Topic, Topic.id == Post.topic_id)
-                    .filter(
-                        Topic.forum_id == self.topic.forum.id,
-                        Post.hidden.is_(False),
-                        Post.id != self.id,
-                    )
-                    .order_by(Post.id.desc())
-                    .limit(1)
-                ).scalar_one_or_none()
+        if self.topic.last_post != self:
+            return
 
-                if second_last_post:
-                    # now lets update the second last post to the last post
-                    self.topic.forum.update_last_post_info(second_last_post)
-                else:
-                    self.topic.forum.update_last_post_info(None)
+        # update the last post in the forum
+        if self.topic.last_post == self.topic.forum.last_post:
+            # We need the second last post in the forum here,
+            # because the last post will be deleted
+            second_last_post = db.session.execute(
+                db.select(Post)
+                .join(Topic, Topic.id == Post.topic_id)
+                .filter(
+                    Topic.forum_id == self.topic.forum.id,
+                    Post.hidden.is_(False),
+                    Post.id != self.id,
+                )
+                .order_by(Post.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
 
-            # check if there is a second last post in this topic
-            if self.topic.second_last_post is not None:
-                # Now the second last post will be the last post
-                self.topic.last_post_id = self.topic.second_last_post
-
-            # there is no second last post, now the last post is also the
-            # first post
+            if second_last_post:
+                # now lets update the second last post to the last post
+                self.topic.forum.update_last_post_info(second_last_post)
             else:
-                self.topic.last_post = self.topic.first_post
+                self.topic.forum.update_last_post_info(None)
 
-            self.topic.last_updated = self.topic.last_post.date_created
+        # check if there is a second last post in this topic
+        if self.topic.second_last_post is not None:
+            # Now the second last post will be the last post
+            self.topic.last_post_id = self.topic.second_last_post
+
+        # there is no second last post, now the last post is also the
+        # first post
+        else:
+            self.topic.last_post = self.topic.first_post
+
+        self.topic.last_updated = self.topic.last_post.date_created
 
     def _update_counts(self):
         if self.hidden:
