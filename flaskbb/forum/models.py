@@ -53,6 +53,17 @@ from flaskbb.utils.settings import flaskbb_config
 logger = logging.getLogger(__name__)
 
 
+def _assign_user_bulk_safe(instance, user):
+    """
+    Sets the user safely without breaking bulk insert.
+    Setting the user object directly, even with setting the id explicitly,
+    breaks the session.bulk_save_objects which does not trigger relationships.
+    """
+    if user:
+        instance.user_id = user.id
+        instance.username = user.username
+
+
 moderators = Table(
     "moderators",
     db.metadata,
@@ -269,10 +280,7 @@ class Post(HideableCRUDMixin, db.Model):
             self.content = content
 
         if user:
-            # setting user here -- even with setting the user id explicitly
-            # breaks the bulk insert for some reason
-            self.user_id = user.id
-            self.username = user.username
+            _assign_user_bulk_safe(self, user)
 
         if topic:
             self.topic_id = topic if isinstance(topic, int) else topic.id
@@ -600,11 +608,7 @@ class Topic(HideableCRUDMixin, db.Model):
             self.title = title
 
         if user:
-            # setting the user here, even with setting the id, breaks the bulk
-            # insert stuff as they use the session.bulk_save_objects which does
-            # not trigger relationships
-            self.user_id = user.id
-            self.username = user.username
+            _assign_user_bulk_safe(self, user)
 
         if content:
             self._post: Post = Post(content=content)
