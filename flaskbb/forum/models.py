@@ -1393,7 +1393,7 @@ class Forum(db.Model, CRUDMixin):
                      forumsread object.
         """
         if user.is_authenticated:
-            item = db.session.execute(
+            forum_result_tuple = db.session.execute(
                 db.select(cls, ForumsRead)
                 .filter(cls.id == forum_id)
                 .options(db.joinedload(cls.category))
@@ -1405,9 +1405,9 @@ class Forum(db.Model, CRUDMixin):
                     ),
                 )
             ).first()
-            if not item:
+            if not forum_result_tuple:
                 abort(404)
-            forum, forumsread = item
+            forum, forumsread = forum_result_tuple
         else:
             forum = (
                 db.session.execute(db.select(cls).filter(cls.id == forum_id))
