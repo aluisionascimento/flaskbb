@@ -794,7 +794,7 @@ class Topic(HideableCRUDMixin, db.Model):
 
         # The user has not visited the topic before. Inserting him in
         # the TopicsRead model.
-        elif not topicsread:
+        else:
             logger.debug("Creating new TopicsRead object.")
             topicsread = TopicsRead()
             topicsread.user = user
@@ -803,10 +803,6 @@ class Topic(HideableCRUDMixin, db.Model):
             topicsread.last_read = time_utcnow()
             topicsread.save()
             updated = True
-
-        # No unread posts
-        else:
-            updated = False
 
         # Save True/False if the forums tracker has been updated.
         updated = forum.update_read(user, forumsread, topicsread)
